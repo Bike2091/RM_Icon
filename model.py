@@ -14,7 +14,7 @@ class IconDataset(Dataset):
 
         # Iterate through root directory to find folder pairs
         print("Finding valid file pairs...")
-        for root, dirs in os.walk(root_dir):
+        for root, dirs , _ in os.walk(root_dir):
             for d in dirs:  # Process each subdirectory
                 folder_path = os.path.join(root, d)
                 sketch_path = os.path.join(folder_path, f"{d}_sketch_icon.png")
