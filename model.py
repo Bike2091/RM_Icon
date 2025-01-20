@@ -13,7 +13,8 @@ class IconDataset(Dataset):
         self.filepairs = []  # To store pairs of sketch and color icon file paths
 
         # Iterate through root directory to find folder pairs
-        for root, dirs, files in os.walk(root_dir):
+        print("Finding valid file pairs...")
+        for root, dirs in os.walk(root_dir):
             for d in dirs:  # Process each subdirectory
                 folder_path = os.path.join(root, d)
                 sketch_path = os.path.join(folder_path, f"{d}_sketch_icon.png")
@@ -158,6 +159,7 @@ save_dir = "D:\\RM"
 os.makedirs(save_dir, exist_ok=True)
 
 # Training loop with model saving
+print("Starting training...")
 for epoch in range(epochs):
     for i, (sketches, real_images, _) in enumerate(train_loader):
         sketches, real_images = sketches.to(device), real_images.to(device)
