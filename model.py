@@ -5,50 +5,46 @@ from torchvision import transforms
 from PIL import Image
 import os
 
-# Define the IconDataset class to handle the structure
 class IconDataset(Dataset):
     def __init__(self, root_dir, transform=None, sketch_transform=None):
         self.root_dir = root_dir
         self.transform = transform
         self.sketch_transform = sketch_transform
-        self.classes = os.listdir(root_dir)
-        self.filepaths = []
-        self.labels = []
+        self.filepairs = []  # To store pairs of sketch and color icon file paths
 
-        for idx, cls in enumerate(self.classes):
-            class_dir = os.path.join(root_dir, cls)
-            if os.path.isdir(class_dir):
-                for subfolder in os.listdir(class_dir):
-                    subfolder_dir = os.path.join(class_dir, subfolder)
-                    if os.path.isdir(subfolder_dir):
-                        for file in os.listdir(subfolder_dir):
-                            if file.endswith(('png', 'jpg', 'jpeg')):
-                                image_path = os.path.join(subfolder_dir, file)
-                                self.filepaths.append(image_path)
-                                self.labels.append(idx)
+        # Iterate through root directory to find folder pairs
+        for root, dirs, files in os.walk(root_dir):
+            for d in dirs:  # Process each subdirectory
+                folder_path = os.path.join(root, d)
+                sketch_path = os.path.join(folder_path, f"{d}_sketch_icon.png")
+                color_icon_path = os.path.join(folder_path, f"{d}_color_icon.png")
 
-        # Debugging output for the class and subfolders
-                print(f"[{idx+1}/{len(self.classes)}] Class: {cls} has {int(len(os.listdir(class_dir))/2)} images.")
+                # Check if both files exist in the folder
+                if os.path.exists(sketch_path) and os.path.exists(color_icon_path):
+                    self.filepairs.append((sketch_path, color_icon_path))
 
-        print(f"Total images found: {int(len(self.filepaths)/2)}")  # Total count of images
+        print(f"Total valid file pairs found: {len(self.filepairs)}")
 
     def __len__(self):
-        return len(self.filepaths)
+        return len(self.filepairs)
 
     def __getitem__(self, idx):
-        image_path = self.filepaths[idx]
-        label = self.labels[idx]
-        
-        image = Image.open(image_path).convert('RGB')
-        
-        sketch = image.convert('L')  # Convert to grayscale for sketches
-        
-        if self.transform:
-            image = self.transform(image)
+        sketch_path, color_icon_path = self.filepairs[idx]
+
+        # Load images
+        sketch = Image.open(sketch_path).convert('L')  # Grayscale for sketches
+        color_icon = Image.open(color_icon_path).convert('RGB')  # RGB for color icons
+
+        # Apply transformations
         if self.sketch_transform:
             sketch = self.sketch_transform(sketch)
-        
-        return sketch, image, label
+        if self.transform:
+            color_icon = self.transform(color_icon)
+
+        # Using a dummy label of 0
+        label = 0
+        return sketch, color_icon, label
+
 
 # Define image transformations
 transform = transforms.Compose([
@@ -62,7 +58,6 @@ sketch_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5], std=[0.5])  # Grayscale normalization
 ])
-
 
 # Load the dataset
 root_dir = "D:\\RM\\processed_icons_extracted"
@@ -83,12 +78,12 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-# Generator and Discriminator Classes (No changes needed)
+# Generator
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),  # Updated to 3 input channels
+            nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(128),
@@ -120,6 +115,7 @@ class Generator(nn.Module):
         x = self.decoder(x)
         return x
 
+#Discriminator
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
@@ -145,14 +141,11 @@ class Discriminator(nn.Module):
         x = self.sigmoid(x)
         return x
 
-
-    
-
 # Define the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# Initialize models, optimizers, and loss function as before
+# Initialize models
 generator = Generator().to(device)
 discriminator = Discriminator().to(device)
 criterion = nn.BCELoss()
@@ -171,8 +164,6 @@ for epoch in range(epochs):
         batch_size = sketches.size(0)
         real_labels = torch.ones(batch_size, 1, device=device)
         fake_labels = torch.zeros(batch_size, 1, device=device)
-
-        # Ensure sketches have the same channel count as real images (3 channels)
         sketches = sketches.repeat(1, 3, 1, 1)  # Convert 1-channel sketches to 3-channel
 
         # Train Discriminator
@@ -201,5 +192,3 @@ for epoch in range(epochs):
     print(f"Models saved for epoch {epoch+1}.")
 
 print("Training complete.")
-
-
