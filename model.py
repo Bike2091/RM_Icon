@@ -5,46 +5,59 @@ from torchvision import transforms
 from PIL import Image
 import os
 
+import os
+from PIL import Image
+import torch
+from torch.utils.data import Dataset
+
 class IconDataset(Dataset):
     def __init__(self, root_dir, transform=None, sketch_transform=None):
         self.root_dir = root_dir
         self.transform = transform
         self.sketch_transform = sketch_transform
-        self.filepairs = []  # To store pairs of sketch and color icon file paths
+        self.filepairs = []
 
-        # Iterate through root directory to find folder pairs
-        print("Finding valid file pairs...")
-        for root, dirs , _ in os.walk(root_dir):
-            for d in dirs:  # Process each subdirectory
-                folder_path = os.path.join(root, d)
-                sketch_path = os.path.join(folder_path, f"{d}_sketch_icon.png")
-                color_icon_path = os.path.join(folder_path, f"{d}_color_icon.png")
+        # Find paired images (sketch and color icons)
+        print("Finding image pairs...")
+        for cls in os.listdir(root_dir):
+            class_dir = os.path.join(root_dir, cls)
+            if os.path.isdir(class_dir):
+                for subfolder in os.listdir(class_dir):
+                    subfolder_dir = os.path.join(class_dir, subfolder)
+                    if os.path.isdir(subfolder_dir):
+                        sketch_path = None
+                        color_icon_path = None
 
-                # Check if both files exist in the folder
-                if os.path.exists(sketch_path) and os.path.exists(color_icon_path):
-                    self.filepairs.append((sketch_path, color_icon_path))
+                        for file in os.listdir(subfolder_dir):
+                            if "sketch_icon" in file:
+                                sketch_path = os.path.join(subfolder_dir, file)
+                            elif "color_icon" in file:
+                                color_icon_path = os.path.join(subfolder_dir, file)
+                                
+                        if sketch_path and color_icon_path:
+                            self.filepairs.append((sketch_path, color_icon_path))
 
-        print(f"Total valid file pairs found: {len(self.filepairs)}")
+        print(f"Found {len(self.filepairs)} valid image pairs.")
 
     def __len__(self):
         return len(self.filepairs)
 
     def __getitem__(self, idx):
-        sketch_path, color_icon_path = self.filepairs[idx]
+        sketch_icon_path, color_icon_path = self.filepairs[idx]
 
         # Load images
-        sketch = Image.open(sketch_path).convert('L')  # Grayscale for sketches
+        sketch_icon = Image.open(sketch_icon_path).convert('L')  # Grayscale for sketches
         color_icon = Image.open(color_icon_path).convert('RGB')  # RGB for color icons
 
         # Apply transformations
         if self.sketch_transform:
-            sketch = self.sketch_transform(sketch)
+            sketch_icon = self.sketch_transform(sketch_icon)
         if self.transform:
             color_icon = self.transform(color_icon)
 
         # Using a dummy label of 0
         label = 0
-        return sketch, color_icon, label
+        return sketch_icon, color_icon, label
 
 
 # Define image transformations
