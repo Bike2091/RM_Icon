@@ -5,11 +5,6 @@ from torchvision import transforms
 from PIL import Image
 import os
 
-import os
-from PIL import Image
-import torch
-from torch.utils.data import Dataset
-
 class IconDataset(Dataset):
     def __init__(self, root_dir, transform=None, sketch_transform=None):
         self.root_dir = root_dir
@@ -33,7 +28,7 @@ class IconDataset(Dataset):
                                 sketch_path = os.path.join(subfolder_dir, file)
                             elif "color_icon" in file:
                                 color_icon_path = os.path.join(subfolder_dir, file)
-                                
+
                         if sketch_path and color_icon_path:
                             self.filepairs.append((sketch_path, color_icon_path))
 
